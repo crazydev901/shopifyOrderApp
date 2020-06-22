@@ -157,7 +157,7 @@ export default () => {
       body: JSON.stringify({ query: BULK_QUERY, variables: variables })
     };
     console.log("gqlServerOpts!!!", gqlServerOpts);
-    fetch(`https://shaw-farm.myshopify.com/admin/api/2020-04/graphql.json`, gqlServerOpts)
+    fetch("/admin/api", gqlServerOpts)
     .then(res => {
       console.log("BULK QUERY!!!", res);
     })
