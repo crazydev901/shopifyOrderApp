@@ -1,0 +1,11 @@
+.env
+/node_modules
+/.next
+/.next/build-manifest.json
+/.next/server/pages-manifest.json
+/.next/static/chunks/styles.js
+/.next/static/chunks/styles.js.map
+/.next/static/runtime/webpack.js
+/.next/static/runtime/webpack.js.map
+/.vscode
+/.dependabot
