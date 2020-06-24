@@ -14,74 +14,85 @@ const Router = require('koa-router');
 // const { receiveWebhook, registerWebhook } = require('@shopify/koa-shopify-webhooks');
 // const cors = require('@koa/cors');
 
+const bulkQuery = require('./server/bulkQuery');
+
 const port = parseInt(process.env.PORT, 10) || 3000;
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
 const {
-  SHOPIFY_API_SECRET_KEY,
-  SHOPIFY_API_KEY,
-  // SHOPIFY_PRIVATE_APP_PASSWORD,
-  // SHOP,
-  // HOST,
+    SHOPIFY_API_SECRET_KEY,
+    SHOPIFY_API_KEY,
+    // SHOPIFY_PRIVATE_APP_PASSWORD,
+    // SHOP,
+    // HOST,
 } = process.env;
 
 app.prepare().then(() => {
-  const server = new Koa();
-  const router = new Router();
-  server.use(session({ sameSite: 'none', secure: true }, server));
-  server.keys = [SHOPIFY_API_SECRET_KEY];
+    const server = new Koa();
+    const router = new Router();
+    server.use(session({ sameSite: 'none', secure: true }, server));
+    server.keys = [SHOPIFY_API_SECRET_KEY];
 
-  server.use(
-    createShopifyAuth({
-      apiKey: SHOPIFY_API_KEY,
-      secret: SHOPIFY_API_SECRET_KEY,
-      scopes: ['read_orders', 'read_customers'],
-      async afterAuth(ctx) {
-        const { shop, accessToken } = ctx.session;
-        ctx.cookies.set("shopOrigin", shop, {
-          httpOnly: false,
-          secure: true,
-          sameSite: 'none'
-        });
-        ctx.cookies.set("accessToken", accessToken, {
-          httpOnly: false,
-          secure: true,
-          sameSite: 'none'
-        });
-        ctx.redirect('/');
-      }
-    })
-  );
+    server.use(
+        createShopifyAuth({
+            apiKey: SHOPIFY_API_KEY,
+            secret: SHOPIFY_API_SECRET_KEY,
+            scopes: ['read_orders', 'read_customers'],
+            async afterAuth(ctx) {
+                const { shop, accessToken } = ctx.session;
+                ctx.cookies.set("shopOrigin", shop, {
+                    httpOnly: false,
+                    secure: true,
+                    sameSite: 'none'
+                });
+                ctx.cookies.set("accessToken", accessToken, {
+                    httpOnly: false,
+                    secure: true,
+                    sameSite: 'none'
+                });
+                await bulkQuery(ctx, accessToken, shop)
+                    .then(res => {
+                        console.log("here");
+                    });
+                // ctx.redirect('/');
+            }
+        })
+    );
+    console.log('Pass here');
+    server.use(graphQLProxy({ version: ApiVersion.April20 }));
+    // const corsOptions = {
+    //   origin(origin, callback) {
+    //     callback(null, true);
+    //   },
+    //   credentials: true
+    // };
+    // server.use(cors(corsOptions));
 
-  server.use(graphQLProxy({ version: ApiVersion.April20 }));
-  // const corsOptions = {
-  //   origin(origin, callback) {
-  //     callback(null, true);
-  //   },
-  //   credentials: true
-  // };
-  // server.use(cors(corsOptions));
+    // server.use(
+    //   graphQLProxy({
+    //     version: ApiVersion.April20,
+    //     shop: SHOP,
+    //     password: SHOPIFY_PRIVATE_APP_PASSWORD,
+    //   })
+    // );
 
-  // server.use(
-  //   graphQLProxy({
-  //     version: ApiVersion.April20,
-  //     shop: SHOP,
-  //     password: SHOPIFY_PRIVATE_APP_PASSWORD,
-  //   })
-  // );
+    router.get('*', verifyRequest(), async(ctx) => {
+        await handle(ctx.req, ctx.res);
+        ctx.respond = false;
+        ctx.res.statusCode = 200;
+    });
+    router.post('*', verifyRequest(), async(ctx) => {
+        await handle(ctx.req, ctx.res);
+        ctx.body = ctx.request.body;
+        ctx.res.statusCode = 200;
+    });
 
-  router.get('*', verifyRequest(), async (ctx) => {
-    await handle(ctx.req, ctx.res);
-    ctx.respond = false;
-    ctx.res.statusCode = 200;
-  });
+    server.use(router.allowedMethods());
+    server.use(router.routes());
 
-  server.use(router.allowedMethods());
-  server.use(router.routes());
-
-  server.listen(port, () => {
-    console.log(`> Ready on http://localhost:${port}`);
-  });
+    server.listen(port, () => {
+        console.log(`> Ready on http://localhost:${port}`);
+    });
 });
