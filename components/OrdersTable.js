@@ -15,7 +15,6 @@ import { Query } from 'react-apollo';
 import fetch from "isomorphic-fetch";
 import Cookies from "js-cookie";
 
-
 const GET_ORDERS = gql`
   query($numOrders: Int!, $cursor: String) {
     orders(first: $numOrders, after: $cursor) {
@@ -142,8 +141,7 @@ export default () => {
     }
   ];
   
-  const loadAll = () => {
-    console.log("load All!!!!!");
+  const loadAll = async() => {
     const variables = { 
       first: 100,
       query: "created_at:>=2020-05-25"
@@ -156,12 +154,16 @@ export default () => {
       },
       body: JSON.stringify({ query: BULK_QUERY, variables: variables })
     };
-    console.log("gqlServerOpts!!!", gqlServerOpts);
-    fetch("/admin/api", gqlServerOpts)
-    .then(res => {
-      console.log("BULK QUERY!!!", res);
-    })
-    .catch(err => console.log(err));
+    fetch("/bulkQuery", gqlServerOpts)
+    .then(response => response.text())
+    .then(transform);
+
+  }
+
+  function transform(str){
+    let data = str.split('\n');
+    let tmp = { "edge": data };
+    setOrders(tmp);
   }
 
   const filters = [
@@ -205,50 +207,50 @@ export default () => {
     </Filters>
   );
   
-  useEffect(() => {
-    console.log('useEffect has been called!');
-    const variables = {
-      numOrders: numOrders,
-      cursor: cursor_index !== null ? cursor[cursor_index] : null
-    };
-    const gqlServerOpts = {
-      method: "POST",
-      headers: { "Cotent-Type": "application/json" },
-      body: JSON.stringify({ query: GET_ORDERS, variables: variables })
-    };
+  // useEffect(() => {
+  //   console.log('useEffect has been called!');
+  //   const variables = {
+  //     numOrders: numOrders,
+  //     cursor: cursor_index !== null ? cursor[cursor_index] : null
+  //   };
+  //   const gqlServerOpts = {
+  //     method: "POST",
+  //     headers: { "Cotent-Type": "application/json" },
+  //     body: JSON.stringify({ query: GET_ORDERS, variables: variables })
+  //   };
 
-    fetch("/admin/api", gqlServerOpts)
-    .then(res => res.json())
-    .then(res => {
-      console.log("res data!!!", res);
-      const orders = res.data.orders.map(e => e);
-      console.log("fetch orders componentDidMount", orders);
-      setOrders(orders);
-    });
-  }, []);
+  //   fetch("/admin/api", gqlServerOpts)
+  //   .then(res => res.json())
+  //   .then(res => {
+  //     console.log("res data!!!", res);
+  //     const orders = res.data.orders.map(e => e);
+  //     console.log("fetch orders componentDidMount", orders);
+  //     setOrders(orders);
+  //   });
+  // }, []);
 
-  useEffect(() => {
-    console.log('useEffect has been called!');
-    const variables = {
-      numOrders: numOrders,
-      cursor: cursor_index !== null ? cursor[cursor_index] : null
-    };
-    const gqlServerOpts = {
-      method: "POST",
-      headers: { "Cotent-Type": "application/json" },
-      body: JSON.stringify({ query: GET_ORDERS, variables: variables })
-    };
+  // useEffect(() => {
+  //   console.log('useEffect has been called!');
+  //   const variables = {
+  //     numOrders: numOrders,
+  //     cursor: cursor_index !== null ? cursor[cursor_index] : null
+  //   };
+  //   const gqlServerOpts = {
+  //     method: "POST",
+  //     headers: { "Cotent-Type": "application/json" },
+  //     body: JSON.stringify({ query: GET_ORDERS, variables: variables })
+  //   };
 
-    fetch("/admin/api", gqlServerOpts)// '/admin/api'
-    .then(res => res.json())
-    .then(res => {
-      console.log("inside res!!!!", res);
-      const orders = res.data.orders.map(e => e);
-      console.log("fetch orders", orders);
-      setOrders(orders);
-    })
-    .catch(console.error);
-  }, [cursor_index]);
+  //   fetch("/admin/api", gqlServerOpts)// '/admin/api'
+  //   .then(res => res.json())
+  //   .then(res => {
+  //     console.log("inside res!!!!", res);
+  //     const orders = res.data.orders.map(e => e);
+  //     console.log("fetch orders", orders);
+  //     setOrders(orders);
+  //   })
+  //   .catch(console.error);
+  // }, [cursor_index]);
 
   const variables = {
     numOrders: numOrders,
@@ -307,7 +309,7 @@ export default () => {
 
   function renderItem(ritem, hasPreviousPage, hasNextPage, edges) {
     const item = ritem.node;
-    // console.log("item!!!!!!!!!", item);
+    console.log("item!!!!!!!!!", item);
     
     if(item){
       const { name, customer, originalTotalPriceSet, tags} = item;
@@ -344,21 +346,7 @@ export default () => {
     } else {
       return (
         <Stack distribution="center">
-          <Pagination
-            label={cursor_index + 1}
-            hasPrevious={hasPreviousPage}
-            previousKeys={[37]}
-            onPrevious={() => {
-              setCursorIndex(cursor_index - 1);
-            }}
-            hasNext={hasNextPage}
-            nextKeys={[39]}
-            onNext={() => {
-              cursor.push(edges[edges.length - 1].cursor);
-              setCursorIndex(cursor_index + 1);
-              setCursor(cursor);
-            }}
-          />
+
         </Stack>
       )
     }
