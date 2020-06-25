@@ -103,8 +103,7 @@ export default () => {
   const [cursor_index, setCursorIndex] = useState(0);
   const [cursor, setCursor] = useState([null]);
   const [load_all_flag, setFlag] = useState(false);
-  const numOrders = 50;
-
+  const [numOrders, setNumOrders] = useState(50);
   const handleTaggedWithChange = useCallback(value => setTaggedWith(value), []);
   const handleQueryValueChange = useCallback(value => setQueryValue(value), []);
   const handleTaggedWithRemove = useCallback(() => setTaggedWith(null), []);
@@ -140,6 +139,8 @@ export default () => {
       onAction: () => console.log("Todo: implement bulk delete")
     }
   ];
+
+  const selectable = true;
   
   const loadAll = async() => {
     const variables = { 
@@ -155,15 +156,13 @@ export default () => {
       body: JSON.stringify({ query: BULK_QUERY, variables: variables })
     };
     fetch("/bulkQuery", gqlServerOpts)
-    .then(response => response.text())
+    .then(response => response.json())
     .then(transform);
 
   }
 
-  function transform(str){
-    let data = str.split('\n');
-    let tmp = { "edge": data };
-    setOrders(tmp);
+  function transform(data){
+    setOrders(data);
   }
 
   const filters = [
@@ -257,7 +256,6 @@ export default () => {
     cursor: cursor_index !== null ? cursor[cursor_index] : null
   };
 
-
   return (
     <Query query={GET_ORDERS} variables={variables}>
         {({data, loading, error}) => {
@@ -277,18 +275,21 @@ export default () => {
 
               const updatedEdges = edges.map(e => e);
 
-              updatedEdges.push(0);
-
-              return (
+              // updatedEdges.push(0);
+              if(orders.length == 0){
+	      return (
               <Card>
                   <ResourceList
                       resourceName={resourceName}
+                      filterControl={filterControl}
                       items={updatedEdges}
+                      idForItem={(item)=>(item.node.name)}
                       renderItem={(item) => renderItem(item, hasPreviousPage, hasNextPage, edges)}
                       selectedItems={selectedItems}
                       onSelectionChange={setSelectedItems}
                       promotedBulkActions={promotedBulkActions}
                       bulkActions={bulkActions}
+                      selectable={selectable}
                       sortValue={sortValue}
                       sortOptions={[
                       { label: "Newest update", value: "DATE_MODIFIED_DESC" },
@@ -298,10 +299,37 @@ export default () => {
                       setSortValue(selected);
                       console.log(`Sort option changed to ${selected}.`);
                       }}
-                      filterControl={filterControl}
                   />
               </Card>
               );
+              }
+              else{
+              return (
+              <Card>
+                  <ResourceList
+                      resourceName={resourceName}
+                      filterControl={filterControl}
+                      items={orders}
+                      idForItem={(item)=>(item.name)}
+                      renderItem={(item) => renderItem1(item)}
+                      selectedItems={selectedItems}
+                      onSelectionChange={setSelectedItems}
+                      promotedBulkActions={promotedBulkActions}
+                      bulkActions={bulkActions}
+                      selectable={true}
+                      sortValue={sortValue}
+                      sortOptions={[
+                      { label: "Newest update", value: "DATE_MODIFIED_DESC" },
+                      { label: "Oldest update", value: "DATE_MODIFIED_ASC" }
+                      ]}
+                      onSortChange={selected => {
+                      setSortValue(selected);
+                      console.log(`Sort option changed to ${selected}.`);
+                      }}
+                  />
+              </Card>
+              );
+              }
             }
         }}
     </Query>
@@ -309,16 +337,85 @@ export default () => {
 
   function renderItem(ritem, hasPreviousPage, hasNextPage, edges) {
     const item = ritem.node;
-    console.log("item!!!!!!!!!", item);
     
     if(item){
       const { name, customer, originalTotalPriceSet, tags} = item;
-
 
       let tagsStr = "";
       tags.forEach( tag => {
           tagsStr = tagsStr + tag + ", ";
       });
+      if (queryValue && taggedWith){
+        if(customer.displayName.search(queryValue) == -1 && name.search(queryValue) == -1){
+           if(tagsStr){
+             if(tagsStr.search(taggedWith) == -1) return;
+           }
+	   else return;
+        }
+      }
+      return (
+        <ResourceItem
+          persistActions
+          id={item.name}
+        >
+            <Stack alignment="center" distribution="fillEvenly">
+              <Stack distribution="center">
+                <TextStyle variation="strong">{name}</TextStyle>
+              </Stack>
+              <Stack distribution="center">
+                <TextStyle variation="strong">{customer.displayName}</TextStyle>
+              </Stack>
+              <Stack distribution="center">
+                <TextStyle variation="strong">{customer.addresses.city} {customer.addresses.province} {customer.addresses.zip}</TextStyle>
+              </Stack>
+              <Stack distribution="center">
+                <TextStyle variation="strong">{originalTotalPriceSet.shopMoney.amount}{originalTotalPriceSet.shopMoney.currencyCode}</TextStyle>
+              </Stack>
+              <Stack distribution="center">
+                  <TextStyle variation="strong">{tagsStr}</TextStyle>
+              </Stack>
+            </Stack>
+        </ResourceItem>
+      );
+    } else {
+      return (
+        <Stack distribution="center">
+          <Pagination
+            label={cursor_index + 1}
+            hasPrevious={hasPreviousPage}
+            previousKeys={[37]}
+            onPrevious={() => {
+              setCursorIndex(cursor_index - 1);
+            }}
+            hasNext={hasNextPage}
+            nextKeys={[39]}
+            onNext={() => {
+              cursor.push(edges[edges.length - 1].cursor);
+              setCursorIndex(cursor_index + 1);
+              setCursor(cursor);
+            }}
+          />
+        </Stack>
+      )
+    }
+  }
+  function renderItem1(item) {
+    
+    if(item){
+      const { name, customer, originalTotalPriceSet, tags} = item;
+
+      let tagsStr = "";
+      tags.forEach( tag => {
+          tagsStr = tagsStr + tag + ", ";
+      }); 
+      if (queryValue && taggedWith){
+        if(customer.displayName.search(queryValue) == -1 && name.search(queryValue) == -1){
+           if(tagsStr){
+             if(tagsStr.search(taggedWith) == -1) return;
+           }
+	   else return;
+        }
+      }
       return (
         <ResourceItem
           persistActions
