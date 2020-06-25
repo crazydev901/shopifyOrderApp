@@ -106,7 +106,7 @@ const bulkQuery = async(ctx, accessToken, shop) => {
         bulkOperationStatus = responseJson1.data.node.status;
     }
     // console.log(responseJson1);
-
+    const objectCount = responseJson1.data.node.objectCount;
     const fileUrl = responseJson1.data.node.url;
     var result = '';
 
@@ -120,8 +120,12 @@ const bulkQuery = async(ctx, accessToken, shop) => {
     // });
     // console.log(response2);
     result = response2.body;
+    let data = result.split(`\n`);
+    for (let i = 0; i < data.length - 1; i++) {
+        data[i] = JSON.parse(data[i]);
+    }
 
-    return result;
+    return data;
     // return JSON.stringify(result);
 
     // return JSON.stringify(Array());
